@@ -1,0 +1,517 @@
+---
+title: "ProgressReportAbakumovaV"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+<h2> Purpose and Goal </h2>
+<p> Life expectancy, as well as other statistics like maternal and child mortality rates, have not always had a clear correlation with how developed or urbanized a country is. For this project, I would like to predict life expectancy of a country in the world based on various statistics of that country. Specifically, I want to look at how unemployment, total population, population growth, poverty, health expenditures per GDP, the number of mobile users, the number of internet users, the ecosystem vitality, and the environmental health affect the life expectancy for a country. </p>
+<p> The goal of this project is not so much geared towards using predictive modeling to predict life expectancy but using predictive modeling to see which of the features above make good predictors of life expectancy. These features could indicate that focusing on improving a specific category like health expenditures or decreasing cell phone use could potentially help elongate the life expectancy for a region. </p>
+
+<h2> Feature Selection and Data Sources </h2>
+<p> There was a lot of freedom in picking the descriptive variables for this particular topic. After seeing the variety of data that is available on a global scale, the chosen descriptive features are ones that could have a potential connection to life expectancy. </p>
+<p> The data for unemployment, population statistics, health expenditures, and the number of mobile and internet users was taken from the CIA World Factbook which has data that is both updated to the most recent year available for that country and that accounts for a lot of the countries in the world. The mobile and internet user data was copy and pasted directly from the website as it was hard to parse the available download file.
+<p>The rest of the data was scraped through indexmundi, a website that displays the World Factbook data in a cleaner table the the CIA website does.</p>
+<p> The ecosystem vitality and environmental data was downloaded from 2014 Environmental Performance Index. According to the EPI, "environmental health measures the protection of human health from environmental harm" and "ecosystem vitality measures ecosystem protection and resource management". These two categories include water and sanitation (access to drinking water, sanitation of water), air quality, health impacts (child mortality) data, and various other statistics about the climate such as wastewater treatment, co2 emissions, biodiversity, and protected areas. Instead of using just the EPI (Environmental Performance Index), both environmental health and ecosystem vitality are included as features to see if one affects life expectancy more than the other. </p>
+<p> Although including all of these features decreased the amount of countries/areas in the dataset, I considered it more important to include all of these features as they could have a significant impact on life expenctancy. </p>
+
+```{r}
+library(rvest)
+library(lubridate)
+library(XML)
+library(RCurl)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+
+scrape_country_data <- function(table_id) {
+  # returns a data frame with the country and its attribute
+  # args: a table id to put into the html
+  url <-
+    paste(
+      "https://www.indexmundi.com/g/r.aspx?t=0&v=",
+      table_id, "&l=en", sep = "")
+  html <- read_html(url)
+  nodes <- html_nodes(html, xpath = "//table")
+  table <- as.data.frame(html_table(nodes[3]))[,c(2,3)]
+  return(table)
+}
+
+# scrape unemployment, population, population growth, health_expenditures, and life expectancy data from indexmundi
+unemployment <- scrape_country_data(74)
+unemployment$Country <- toupper(unemployment$Country)
+colnames(unemployment)[1] <- "COUNTRY"
+
+population <- scrape_country_data(21)
+population$Country <- toupper(population$Country)
+colnames(population)[1] <- "COUNTRY"
+
+population_growth <- scrape_country_data(24)
+population_growth$Country <- toupper(population_growth$Country)
+colnames(population_growth)[1] <- "COUNTRY"
+
+poverty <- scrape_country_data(69)
+poverty$Country <- toupper(poverty$Country)
+colnames(poverty)[1] <- "COUNTRY"
+
+health_expenditures <- scrape_country_data(2225)
+health_expenditures$Country <- toupper(health_expenditures$Country)
+colnames(health_expenditures)[1] <- "COUNTRY"
+
+life_expectancy <- scrape_country_data(30)
+life_expectancy$Country <- toupper(life_expectancy$Country)
+colnames(life_expectancy)[1] <- "COUNTRY"
+
+# load in csv data from the World Factbook and the 2014 EPI
+dir <- "/Users/vikaba/Documents/Documents/northeastern/second_year/spring/Machine Learning 1/project/"
+mobile_users <- read.csv(paste(dir, "mobile_users.csv", sep = ""))[,c(1,2)]
+internet_users <- read.csv(paste(dir, "internet_users.csv", sep = ""))[,c(1,2)]
+epi <- read.csv(paste(dir, "epi.csv", sep = ""))
+epi$COUNTRY <- toupper(epi$COUNTRY)
+
+# merge all features intro one dataframe by country name 
+all_features <- list(unemployment, population, population_growth, poverty, health_expenditures, mobile_users, internet_users, epi, life_expectancy)
+combined <- Reduce(function(x, y) merge (x,y, by="COUNTRY"), all_features)
+
+# change column names to be more simplistic
+colnames(combined) <- c("country", "unemployment", "population", "population_growth", "poverty", "health_expenditures", "mobile_users", "internet_users", "environmental_health", "ecosystem_vitality", "life_expectancy")
+```
+<h2> Data Quality </h2>
+<p> A data quality report was then generated to look for missing values and general statistics about each of the features. <p>
+```{r}
+combined$population <- as.numeric(gsub(",", "", combined$population))
+combined$mobile_users <- as.numeric(gsub(",", "",combined$mobile_users))
+combined$internet_users <- as.numeric(gsub(",", "",combined$internet_users))
+
+# generate a data quality report
+library(dataQualityR)
+try(checkDataQuality(combined[,2:11], "life_continuous"), silent = TRUE)
+dq_report <-
+  read.csv(
+    "/Users/vikaba/Documents/Documents/northeastern/second_year/spring/Machine Learning 1/project/life_continuous"
+  )
+dq_report
+```
+<p> The data quality report shows that there are no missing values in any of the features. This is because each feature for this dataset had no missing values in its original form. </p>
+
+<h4> Outliers </h4>
+<p>This dataset may have values that are far away from the mean. However, such data is kept in for a more accurate and realistic representation of real life statistics. Instead of checking for a number of standard deviations from the mean for outliers, it was checked whether there were illogical numbers in the dataset (i.e. negative total population, > 100 for % of gdp spent on health expenditures). For the population growth feature (has both positive and negative values), outliers were checked with the standard deviations from the mean method to ensure that there were no astronomical values.</p>
+
+```{r}
+# any negatives or > 100 in unemployment, health expenditures, poverty, environmental health, ecosystem_vitality features
+nrow(combined[(combined$unemployment > 100) ||
+           (combined$unemployment < 0), ])
+nrow(combined[(combined$health_expenditures > 100) ||
+           (combined$health_expenditures < 0), ])
+nrow(combined[(combined$poverty > 100) || (combined$poverty < 0), ])
+nrow(combined[(combined$environmental_health > 100) ||
+           (combined$environmental_health < 0), ])
+nrow(combined[(combined$ecosystem_vitality > 100) ||
+           (combined$ecosystem_vitality < 0), ])
+
+# any negatives in population, mobile and internet users, life expectancy features
+nrow(combined[combined$population <= 0, ])
+nrow(combined[combined$mobile_users < 0, ])
+nrow(combined[combined$internet_users < 0, ])
+nrow(combined[combined$life_expectancy <= 0, ])
+
+# more mobile or internet users than population of country
+nrow(combined[(combined$internet_users > combined$population) ||
+           (combined$mobile_users > combined$population), ])
+
+# average of the population growth measurements
+growth_mean <- mean(combined$population_growth)
+
+# standard deviation of the population growth measurements
+growth_sd <- sd(combined$population_growth)
+
+# column for population growth for calculation of standard deviations from the mean
+combined$growthStDevFromMean <-
+  ((combined$population_growth - growth_mean) / growth_sd)
+
+# population growth outliers (>= 3 standard deviations from the mean)
+combined[which(abs(combined$growthStDevFromMean) >= 3), ]
+
+# remove st dev from mean column
+combined <- combined[,1:11]
+```
+<p>There are no illogical numbers in the features that are percentages. The population growth also contains no outliers.</p>
+
+<h4> Statistics about the Data </h4>
+<p> Measures of central tendency, measures of skewness, and histograms were generated for each feature in the dataset.</p>
+```{r}
+library(moments)
+# create a copy of the dataset for applying transforms to the data
+transformed <- combined
+
+# st dev for unemployment
+paste("st dev for unemployment", sd(combined$unemployment))
+
+# median for unemployment
+paste("median for unemployment:", median(combined$unemployment))
+
+# IQR for unemployment
+paste("IQR for unemployment:", IQR(combined$unemployment))
+
+# skewness for unemployment
+paste("skewness for unemployment:", skewness(combined$unemployment))
+
+# kurtosis for unemployment
+paste("kurtosis for unemployment:", kurtosis(log(combined$unemployment)))
+
+# histogram for unemployment
+hist(combined$unemployment, main = "Distribution of Unemployment", xlab = "Unemployment", breaks=10)
+
+# histogram for unemployment with log transform
+hist(log(combined$unemployment), main = "Distribution of log(Unemployment)", xlab = "Unemployment", breaks=10)
+
+# apply log transform to unemployment feature
+transformed$unemployment <- log(combined$unemployment)
+```
+There is a heavy positive/right skew for the unemployment feature as seen in the histogram and by the skewness calculation. The distribution has a kurtosis well above 3 and is therefore, leptokurtic. This is fixed with a log transform which makes the unemployment feature more normally distributed, less skewed, and lowers the kurtosis value, closer to 3.
+
+```{r}
+# st dev for population
+paste("st dev for population", sd(combined$population))
+
+# median for population
+paste("median for population:", median(combined$population))
+
+# IQR for population
+paste("IQR for population:", IQR(combined$population))
+
+# skewness for population
+paste("skewness for population:", skewness(combined$population))
+
+# kurtosis for population
+paste("kurtosis for population:", kurtosis(combined$population))
+
+# histogram for population
+hist(combined$population, main = "Distribution of Population", xlab = "Population", breaks=30)
+
+# histogram for population with log transform
+hist(log(combined$population), main = "Distribution of log(Population)", xlab = "Population", breaks=30)
+
+# apply log transform to population feature
+transformed$population <- log(combined$population)
+```
+There is a heavy positive/right skew for the population feature as seen in the histogram and by the skewness calculation. The distribution has a kurtosis much larger than 3 and is therefore, leptokurtic. This is fixed with a log transform which makes the population feature more normally distributed, less skewed, and lowers the kurtosis value, closer to 3.
+
+```{r}
+# st dev for population growth
+paste("st dev for population growth", sd(combined$population_growth))
+
+# median for population
+paste("median for population growth:", median(combined$population_growth))
+
+# IQR for population growth
+paste("IQR for population:", IQR(combined$population_growth))
+
+# skewness for population growth
+paste("skewness for population:", skewness(combined$population_growth))
+
+# kurtosis for population growth
+paste("kurtosis for population:", kurtosis(combined$population_growth))
+
+# histogram for population growth
+hist(combined$population_growth, main = "Distribution of Population Growth", xlab = "Population Groth", breaks=50)
+```
+There is a very small right skew for the population growth feature as seen in the histogram and by the skewness calculation. The distribution has a kurtosis that is slightly smaller than 3 and is therefore, platykurtic. This shows that the population growth feature has a fairly normal distribution and does not need to be transformed.
+
+```{r}
+# st dev for poverty
+paste("st dev for poverty", sd(combined$poverty))
+
+# median for poverty
+paste("median for poverty:", median(combined$poverty))
+
+# IQR for poverty
+paste("IQR for poverty:", IQR(combined$poverty))
+
+# skewness for poverty
+paste("skewness for poverty:", skewness(combined$poverty))
+
+# kurtosis for poverty
+paste("kurtosis for poverty:", kurtosis(combined$poverty))
+
+# histogram for poverty
+hist(combined$poverty, main = "Distribution of Poverty", xlab = "Poverty", breaks=20)
+
+# histogram for poverty with square root transform
+hist((combined$poverty)^(1/2), main = "Distribution of SqRoot(Poverty)", xlab = "Poverty", breaks=20)
+
+# apply square root transform to poverty feature
+transformed$poverty <- log(combined$poverty)
+```
+There is a slight right skew for the poverty feature as seen in the histogram and by the skewness calculation. The distribution has a kurtosis slightly larger than 3 and is therefore, leptokurtic. A square root transform further lowers the skewness and makes the distribution more normal as seen in the histogram.
+
+```{r}
+# st dev for health expenditures
+paste("st dev for health expenditures", sd(combined$health_expenditures))
+
+# median forhealth expenditures
+paste("median for health expenditures:", median(combined$health_expenditures))
+
+# IQR for health expenditures
+paste("IQR for health expenditures:", IQR(combined$health_expenditures))
+
+# skewness forhealth expenditures
+paste("skewness for health expenditures:", skewness(combined$health_expenditures))
+
+# kurtosis for health expenditures
+paste("kurtosis for health expenditures:", kurtosis(combined$health_expenditures))
+
+# histogram for health expenditures
+hist(combined$health_expenditures, main = "Distribution of Health Expenditures", xlab = "Health Expenditures", breaks=30)
+```
+There is a slight right skewness for the health expenditures feature as seen in the histogram and by the skewness calculation. The distribution has a kurtosis slightly smaller than 3 and is therefore, platykurtic. No transform creates a better distribution for the data in addition to the data already not being very skewed. Therefore, no transform is applied.
+
+```{r}
+# st dev for mobile users
+paste("st dev for mobile users", sd(combined$mobile_users))
+
+# median for mobile users
+paste("median for mobile users:", median(combined$mobile_users))
+
+# IQR for mobile users
+paste("IQR for mobile users:", IQR(combined$mobile_users))
+
+# skewness for mobile users
+paste("skewness for mobile users:", skewness(combined$mobile_users))
+
+# kurtosis for mobile users
+paste("kurtosis for mobile users:", kurtosis(combined$mobile_users))
+
+# histogram for mobile users
+hist(combined$mobile_users, main = "Distribution of Mobile Users", xlab = "Mobile Users", breaks=35)
+
+# histogram for mobile users with log transform
+hist(log(combined$mobile_users), main = "Distribution of log(Mobile Users)", xlab = "Mobile Users", breaks=30)
+
+# apply log transform to mobile users feature
+transformed$mobile_users <- log(combined$mobile_users)
+```
+There is a positive/right skew for the mobile users feature as seen in the histogram and by the skewness calculation. The distribution has a kurtosis much larger than 3 and is therefore, leptokurtic. This is fixed with a log transform which makes the mobile users feature more normally distributed, less skewed, and lowers the kurtosis value, closer to 3.
+
+```{r}
+# st dev for internet users
+paste("st dev for internet users", sd(combined$internet_users))
+
+# median for internet users
+paste("median for internet users:", median(combined$internet_users))
+
+# IQR for internet users
+paste("IQR for internet users:", IQR(combined$internet_users))
+
+# skewness for internet users
+paste("skewness for internet users:", skewness(combined$internet_users))
+
+# kurtosis for internet users
+paste("kurtosis for internet users:", kurtosis(combined$internet_users))
+
+# histogram for internet users
+hist(combined$internet_users, main = "Distribution of Internet Users", xlab = "Internet Users", breaks=30)
+
+# histogram for internet users with log transform
+hist(log(combined$internet_users), main = "Distribution of log(Internet Users)", xlab = "Internet Users", breaks=30)
+
+# apply log transform to internet users feature
+transformed$internet_users <- log(combined$internet_users)
+```
+There is a heavy positive/right skew for the internet users feature as seen in the histogram and by the skewness calculation. The distribution has a kurtosis much larger than 3 and is therefore, leptokurtic. This is fixed with a log transform which makes the internet users feature more normally distributed, less skewed, and lowers the kurtosis value, closer to 3.
+
+```{r}
+# st dev for environmental health
+paste("st dev for environmental health", sd(combined$environmental_health))
+
+# median for environmental health
+paste("median for environmental health:", median(combined$environmental_health))
+
+# IQR for environmental health
+paste("IQR for environmental health:", IQR(combined$environmental_health))
+
+# skewness for environmental health
+paste("skewness for environmental health:", skewness(combined$environmental_health))
+
+# kurtosis for environmental health
+paste("kurtosis for environmental health:", kurtosis(combined$environmental_health))
+
+# histogram for environmental health
+hist(combined$environmental_health, main = "Distribution of  Environmental Health", xlab = "Environmental Health", breaks=30)
+```
+There is a slight negative/left skew for the environmental health feature as seen by the skewness calculation. The distribution has a kurtosis smaller than 3 and is therefore, platykurtic. Although the environmental health feature is not normally distributed, applying transforms to the feature does not make the distribution for normal. Therefore, no transform is applied to this feature.
+
+```{r}
+# st dev for ecosystem vitality
+paste("st dev for ecosystem vitality", sd(combined$ecosystem_vitality))
+
+# median for ecosystem vitality
+paste("median for ecosystem vitality:", median(combined$ecosystem_vitality))
+
+# IQR for ecosystem vitality
+paste("IQR for ecosystem vitality:", IQR(combined$ecosystem_vitality))
+
+# skewness for ecosystem vitality
+paste("skewness for ecosystem vitality:", skewness(combined$ecosystem_vitality))
+
+# kurtosis for ecosystem vitality
+paste("kurtosis for ecosystem vitality:", kurtosis(combined$ecosystem_vitality))
+
+# histogram for ecosystem vitality
+hist(combined$ecosystem_vitality, main = "Distribution of Ecosystem Vitality", xlab = "Ecosystem Vitality", breaks=50)
+```
+There is a slight positive/right skew for the ecosystem vitality feature as seen by the skewness calculation. The distribution has a kurtosis slightly smaller than 3 and is therefore, platykurtic. Because the distribution is fairly normal, no transform is applied to this feature.
+
+```{r}
+# st dev for life expectancy
+paste("st dev for life expectancy:", sd(combined$life_expectancy))
+
+# median for life expectancy
+paste("median for life expectancy:", median(combined$life_expectancy))
+
+# IQR for life expectancy
+paste("IQR for life expectancy:", IQR(combined$life_expectancy))
+
+# skewness for life expectancy
+paste("skewness for life expectancy:", skewness(combined$life_expectancy))
+
+# kurtosis for life expectancy
+paste("kurtosis for life expectancy:", kurtosis(combined$life_expectancy))
+
+# histogram for life expectancy
+hist((combined$life_expectancy), main = "Distribution of Life Expectancy", xlab = "Life Expectancy", breaks=20)
+```
+There is a small negative/left skew for the life expectancy feature as seen in the histogram and by the skewness calculation. The distribution has a kurtosis slightly smaller than 3 and is therefore, platykurtic. Although the feature does not have a perfect normal distribution, applying transforms to the feature does not change that. Therefore, no transform is applied to this feature.
+
+Then, to analyze the correlation between all of the features in the dataset, a scatterplot matrix was created below.
+```{r}
+# install.packages("psych")
+library(psych)
+pairs.panels(transformed[, 2:11])
+```
+From this chart, the various correlations between all of the features can be seen. For example, it can be seen that health expenditures have a negative correlation with poverty, population, population growth, but a positive correlation with unemployment. This chart also has scatterplots of the features as well as the histograms that are displayed zoomed in above.
+
+<h2> Predictive Models </h2>
+
+<p> Prior to creating various predictive models, the dataset was split 50:50 into a training and testing set. The training set is composed of random sample of 50% of the dataset with the transformed features. The testing set contains the other half of the original dataset without any transformations.</p>
+```{r}
+# training dataset: random sample of the transformed data 
+training <- transformed[sample(nrow(transformed), nrow(transformed) / 2),-1]
+
+# testing set: the other half of the data not in the training set, not transformed
+test <- combined[-c(as.numeric(rownames(training))),-1]
+```
+<h4> Baseline Model </h4>
+<p> A baseline model was first created with the mean for the target feature. This model was created for comparison between a model that just uses the mean as its prediction to models that use different algorithm to accomplish the same goal.</p>
+```{r}
+# baseline model with just the mean of life expectancy as prediction
+mean_model <- mean(training$life_expectancy) 
+
+# RMSE and MAE for baseline model
+rmse_baseline <- sqrt(mean((mean_model-test$life_expectancy)^2))
+mae_baseline <- mean(abs(mean_model-test$life_expectancy))
+paste("RMSE for Baseline Model:", rmse_baseline)
+paste("MAE for Baseline Model:", mae_baseline)
+```
+<h4> Linear Regression Model </h4>
+<p> The first model to be created was a linear regression model because all of the features in this data are continuous and it is a classic model for continuous variables </p>
+<p> A multivariable linear regression model was created with the training set using the step function with backward fitting, which took away the feature with the highest p-value above 0.05 at each step until all of the feature p-values were above 0.05. </p>
+```{r}
+library(stats)
+
+# create a multivariable linear regression model for the training set
+linear <- lm(life_expectancy ~ unemployment + environmental_health, data = training)
+summary(linear)
+```
+```{r}
+# predict the test dataset using the linear model
+pred_lm <- predict(linear, test)
+
+# calculate the prediction accuracy, RMSE, MAE, AIC, BIC of the linear model
+actuals_preds_lm <- cbind(data.frame(actuals = test$life_expectancy, predicteds = pred_lm))
+correlation_accuracy_lm <- cor(actuals_preds_lm)
+paste("Prediction Accuracy: ", correlation_accuracy_lm[1,2] * 100, "%", sep="")
+rmse_linear <- sqrt(mean((pred_lm-test$life_expectancy)^2))
+mae_linear <- mean(abs(pred_lm-test$life_expectancy))
+paste("RMSE:", rmse_linear)
+paste("MAE:", mae_linear)
+```
+<p> The linear regression model is statistically significant with p-values for both all of the selected features and the overall model below 0.05. The model also has an R squared above 0.7 which means that the model explains the variability of the data well. However, when tested on the testing dataset, the model did not perform as well. The prediction accuracy was only around 55%, which is deemed acceptable in some domains. The MAE and RMSE for this model were also higher than those for the baseline model. This means that the baseline model predicts better than the linear regression model. Because the R squared for this model is relatively high and the model is statistically significant but the error measurements indicate porr performace, it is possible that the model did overfit to the training data. This is also likely because the dataset is so small. </p>
+<p> The only statistically significant features that were selected for this model, out of 10 descriptive features, were unemployment (having a negative impact on life expectancy) and environmental health (having a positive impact). Environmental health both had a strong positive correlation and a very linear relationship with life expectancy in the correlation and scatterplot matrix above. Therefore, it makes sense that it was selected for this model with a very small p-value as well. Unemployment did not display the same correlation. It was interesting that it did display enough significance to be retained in the model. </p>
+
+<h4> Decision/Regresion Tree Model </h4>
+<p> A regression tree model was also chosen as a predictive model for the data due to its ability to do feature selection which shows the importance of each variable. The variables that the tree does split on signify importance in predicting the target variable and the goal of the project was to find such variables. </p>
+```{r}
+library(rpart)
+library(rpart.plot)
+
+# build the tree to predict life expectancy and plot the tree
+tree <- rpart(life_expectancy ~ ., data = training, method="anova")
+prp(tree)
+
+# prune the previously made regression tree based on cost complexity
+pruned_tree <- prune(tree, cp=   tree$cptable[which.min(tree$cptable[,"xerror"]),"CP"])
+prp(pruned_tree)
+```
+```{r}
+# predict the test dataset using the decision tree model
+pred_tree <- predict(tree, test)
+
+# calculate the prediction accuracy, RMSE, MAE, AIC, BIC of the tree model
+actuals_preds_tree <- cbind(data.frame(actuals = test$life_expectancy, predicteds = pred_tree))
+correlation_accuracy_tree <- cor(actuals_preds_tree)
+paste("Prediction Accuracy: ", correlation_accuracy_tree[1,2] * 100, "%", sep="")
+rmse_tree <- sqrt(mean((pred_tree-test$life_expectancy)^2))
+mae_tree <- mean(abs(pred_tree-test$life_expectancy))
+paste("RMSE:", rmse_tree)
+paste("MAE:", mae_tree)
+```
+```{r}
+# predict the test dataset using the pruned decision tree model
+pred_tree_pruned <- predict(pruned_tree, test)
+
+# calculate the prediction accuracy, RMSE, MAE, AIC, BIC of the tree model
+actuals_preds_tree_pruned <- cbind(data.frame(actuals = test$life_expectancy, predicteds = pred_tree_pruned))
+correlation_accuracy_tree_pruned <- cor(actuals_preds_tree_pruned)
+paste("Prediction Accuracy: ", correlation_accuracy_tree[1,2] * 100, "%", sep="")
+rmse_tree_pruned <- sqrt(mean((pred_tree_pruned-test$life_expectancy)^2))
+mae_tree_pruned <- mean(abs(pred_tree_pruned-test$life_expectancy))
+paste("RMSE:", rmse_tree_pruned)
+paste("MAE:", mae_tree_pruned)
+```
+
+<p> The decision tree was more successful than the baseline model and the linear regression models made above in predicting the target variable. The RMSE and the MAE were lower than the baseline and the linear regression models and its prediction accuracy higher by over 20%. </p>
+<p> The tree was also pruned to reduce overfitting and to remove the sections of the tree that provide little power in predictions. The pruned tree had the same structure as the regular regression tree, meaning that the optimal subtree is the original tree. This is confirmed by the error measures for the pruned tree being equivalent to those of the not pruned tree. </p>
+<p> The two variables that were selected to split on were unemployment and environmental health like they were in the linear regression model. This further confirms that unemployment and environmental health have a significant relationship with predicting life expectancy. </p>
+
+<h4> Random Forest Model </h4>
+<p> A random forest model was then built to even further improve the performance of the regression tree with more trees and improved accuracy as a result. Random forests are give a good indicator of the importance of individual features as there quantity of trees also increases. </p>
+```{r}
+library(randomForest)
+
+# build a random forest model on the training set
+rf <- randomForest(life_expectancy ~ ., data = training, importance = TRUE)
+
+# predict the test dataset using the random forest model
+pred_rf <- predict(rf, test)
+
+# calculate the prediction accuracy, RMSE, MAE, AIC, BIC of the random forest model
+actuals_preds_rf <- cbind(data.frame(actuals = test$life_expectancy, predicteds = pred_rf))
+correlation_accuracy_rf <- cor(actuals_preds_rf)
+paste("Prediction Accuracy: ", correlation_accuracy_rf[1,2] * 100, "%", sep="")
+rmse_rf <- sqrt(mean((pred_rf-test$life_expectancy)^2))
+mae_rf <- mean(abs(pred_rf-test$life_expectancy))
+paste("RMSE:", rmse_rf)
+paste("MAE:", mae_rf)
+
+# plot a variable importance plot to show which variables were most important in providing node purity in the trees of the random forest
+varImpPlot(rf)
+importance(rf)
+```
+<p> From the plot and the importance table above, it can be seen that environmental health was the most important feature used by the random forest, followed by population growth, with unemployment not high on the light unlike in previous models. </p>
+<p> This model is also stronger than the other models with a higher rate of accuracy for predictions and a higher RMSE and MAE than both the baseline and linear regression model. However, the decision tree, although having a lower accuracy, has both a lower RMSE and MAE. Although both models do predict well, it was predicted that the random forest would perform better. This was predicted because random forests predict more accurately than decision trees. However, in this case, by a small margin of error, a decision tree predicted better than a random forest, perhaps due to the size of the data set. </p>
+
+<h4> Conclusions </h4>
+<p> Three different types of predictive models were built to predict life expectancy from poverty, health expenditures as a percent of GDP, total population, population growth, environmental health, ecosystem vitality, number of internet users, number of mobile users, and unemloyment. Within all of these models, environmental health was consistently the strongest predictive variable and all of the models built had a decent predictive accuracy (the linear regression's predictive strength was subpar but still above 50%). In the decision tree and linear regression models, unemployment was a strong predicitve variable while that was not the case in the random forest model. Therefore, from these predictive models it can concluded that environmental health, out of all of the other chosen features, definitely has the strongest effect on life expectancy and is a strong predictor.</p>
+<p> For areas in which life expectancy is lower than desired, looking towards the environmental health would be a step towards improving life exepctancy, as per the recommendation of these models. This makes sense because the environmental health measurement includes child mortality rate, air quality and pollution levels, access to water, and access to sanitation. All of these areas have a direct impact on the health and quality of life of a population. Therefore, it is not surprising that the combination of these areas would predict and impact the life expectancy in an area so strongly.</p>
+<p> To further prove that environmental health or other features have an impact on life expectancy, different models could be built and with more data both in the training and testing set. This could be accomplished by looking at various regions on a country, which would result in a bigger aggregation of data. The problem that is presented with that approach is that figuring out the best predictive feature from a large selection of features does not usually produce a large dataset. Not all countries actively track these statistics, which results in a sparsity of data, because these features are quite specific and it becomes difficult to make estimates and take surveys about them. However, the current models built still performed relatively well and made a good guess on which features are strongest in prediction. With an accuracy rate above 75% for two of the models, it's relatively safe to say that those models point to the right features that need to be focused on if a population wants to improve its life expectancy. </p>
