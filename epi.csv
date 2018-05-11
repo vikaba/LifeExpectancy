@@ -1,0 +1,179 @@
+COUNTRY,Environmental Health,Ecosystem Vitality
+Switzerland,92.19,84.67
+Luxembourg,92.26,77.31
+Australia,99.44,71.03
+Singapore,99.44,70.01
+Czech Republic,90.63,75.35
+Germany,92.83,72.23
+Spain,97.63,67.89
+Austria,92.15,69.11
+Sweden,99.04,64.12
+Norway,99.44,63.77
+Netherlands,91.86,68.35
+United Kingdom,98.61,63.18
+Denmark,97.61,63.12
+Iceland,98.77,61.65
+Slovenia,91.37,66.47
+New Zealand,87.92,68.74
+Portugal,98.24,60.84
+Finland,99.44,59.9
+Ireland,96.27,60.27
+Estonia,89.12,65.02
+Slovakia,87.89,65.48
+Italy,81.46,69.63
+Greece,91.21,61.32
+Canada,97.92,56.61
+United Arab Emirates,88.33,62.64
+Japan,94.66,57.48
+France,96.48,54.09
+Hungary,88.98,57.81
+Chile,89.42,56.94
+Poland,76.25,65.05
+Serbia,76.71,64.08
+Belarus,81,58.82
+United States of America,92.74,50.71
+Malta,94.7,49.23
+Saudi Arabia,87.54,52.73
+Belgium,89.82,51.14
+Brunei Darussalam,89.51,51.14
+Cyprus,95.23,46.9
+Israel,92.57,47.93
+Latvia,80.52,53.07
+Bulgaria,86.57,48.97
+Kuwait,77.98,54.59
+South Korea,81.7,51.86
+Qatar,89.11,45.64
+Croatia,83.39,48.13
+Taiwan,90.44,43.33
+Tonga,75.43,52.51
+Armenia,74.61,53.05
+Lithuania,73.87,52.86
+Egypt,69.47,55.54
+Malaysia,87.71,40.37
+Tunisia,81.19,44.19
+Ecuador,73.44,48.62
+Costa Rica,82.62,42.47
+Jamaica,70.03,50.41
+Mauritius,86.55,39.11
+Venezuela,72.83,47.79
+Panama,68.6,48.99
+Kiribati,51.45,58.73
+Jordan,76.96,41.66
+Seychelles,83.36,37.02
+Montenegro,78.31,40.33
+Azerbaijan,59.37,52.87
+Cuba,80.64,38.02
+Mexico,69.98,45.06
+Turkey,73.85,42.28
+Albania,72.63,42.8
+Syria,67.09,46.11
+Sri Lanka,67.49,44.8
+Uruguay,89.97,29.37
+Suriname,67.15,44.52
+South Africa,59.33,49.64
+Russia,74.22,39.6
+Moldova,66.88,44.34
+Dominican Republic,69.12,42.65
+Fiji,70.72,41.33
+Brazil,72.22,40.13
+Thailand,71.17,40.61
+Trinidad and Tobago,71.66,39.36
+Palau,85.17,29.82
+Morocco,63.35,44.25
+Bahrain,83.22,30.9
+Iran,76.12,34.39
+Kazakhstan,75.4,34.85
+Colombia,66.01,40.62
+Romania,61.85,42.96
+Bolivia,53.95,48.17
+Belize,79.76,30.93
+Macedonia,78.26,31.84
+Nicaragua,59.9,43.93
+Lebanon,85.94,26.29
+Algeria,70.51,36.45
+Argentina,86.8,24.72
+Zimbabwe,46.42,51.62
+Ukraine,77.71,29.87
+Antigua and Barbuda,81.6,27.08
+Honduras,57.52,43.11
+Guatemala,60.55,39.74
+Oman,81.08,25.52
+Botswana,62.04,37.98
+Georgia,73.12,29.97
+Dominica,72.51,30.12
+Bhutan,42.07,50.06
+Gabon,50.09,44.28
+Bahamas,73.83,28.42
+Vanuatu,57.12,38.39
+Bosnia and Herzegovina,77.57,24.61
+Barbados,87.58,17.45
+Turkmenistan,66.12,31.04
+Peru,55.85,37.84
+Mongolia,55.12,37.7
+Indonesia,55.72,36.78
+Cape Verde,65.4,29.85
+Philippines,60.61,32.95
+El Salvador,65.62,29.23
+Namibia,55.53,35.82
+Uzbekistan,67.68,26.92
+China,42.73,43.19
+Central African Republic,31.08,50.85
+Libya,72,23.2
+Zambia,36.18,45.41
+Papua New Guinea,40.97,41.17
+Equatorial Guinea,38.85,42.54
+Senegal,44.84,38.16
+Kyrgyzstan,63.46,25.41
+Burkina Faso,32.17,46.08
+Laos,34.49,44.29
+Malawi,39.34,40.54
+Cote d'Ivoire,39.08,40.15
+Congo,37.22,40.91
+Ethiopia,35.21,42.24
+Timor-Leste,44.92,35.74
+Paraguay,59.03,26.07
+Nigeria,34.05,42.63
+Uganda,37.26,40.46
+Viet Nam,52.43,28.66
+Guyana,69.19,17.32
+Swaziland,43.48,33.27
+Nepal,31.67,40.55
+Kenya,38.37,36.07
+Cameroon,37.63,36.06
+Niger,27.42,42.19
+Tanzania,35.89,36.39
+Guinea-Bissau,30.68,39.52
+Cambodia,42.73,30.58
+Rwanda,38.7,33.21
+Grenada,75.92,8.12
+Pakistan,38.78,31.79
+Iraq,58.01,16.98
+Benin,34.49,31.04
+Ghana,40.31,26.58
+Solomon Islands,46.75,21.56
+Comoros,47.4,20.72
+Tajikistan,49.89,18.97
+India,33.19,29.92
+Chad,29.57,31.99
+Yemen,43.77,21.09
+Mozambique,31.49,28.96
+Gambia,41.03,21.48
+Angola,35.44,24.19
+Djibouti,52.69,12.4
+Guinea,32.2,25.25
+Togo,32.82,24.63
+Myanmar,41.39,18.14
+Mauritania,37.3,20.44
+Madagascar,37.2,19.71
+Burundi,31.56,21.93
+Eritrea,43.44,13.98
+Bangladesh,30.42,22.4
+Dem. Rep. Congo,23.9,25.75
+Sudan,36.33,16.84
+Liberia,37.99,14.59
+Sierra Leone,27.89,17.64
+Afghanistan,34.61,12.87
+Lesotho,43.31,5.82
+Haiti,37.06,6.98
+Mali,28.41,11.77
+Somalia,28.91,6.5
